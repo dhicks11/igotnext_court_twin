@@ -70,6 +70,28 @@ python court_twin.py --court gso_indoor_01     # one court only
 
 Open any file in `output` with `usdview` or Omniverse USD Composer and press Play.
 
+### View it in Blender (free, no NVIDIA GPU needed)
+
+This project was previewed in Blender 5.2 on a Mac. It has not been run inside Omniverse, so call it Omniverse compatible (standard OpenUSD), not Omniverse tested.
+
+```bash
+brew install --cask blender                      # macOS. On Windows, install from blender.org
+python court_twin.py                             # create the output folder first
+blender --python open_in_blender.py              # opens gso_indoor_01 and starts playback
+blender --python open_in_blender.py -- output/gso_outdoor_02.usda   # a different court
+```
+
+Do not use File, Import by hand. Blender skips USD Preview Surface materials by default and ignores material bindings on simple USD shapes, so the court would appear gray. `open_in_blender.py` turns on the right import options and assigns each material by object name. Keep `basketball_asset.usda` beside the court file.
+
+Controls: Spacebar plays and pauses, Home frames the whole court, and the second shading ball at the top right of the 3D view (Material Preview) shows colors and gloss.
+
+### What the scene contains
+
+* Glossy hardwood (or matte asphalt) playing surface on a dark purple out of bounds border.
+* Boundary lines, a purple painted key, free throw circles, a three point line with corner lines, and a center circle on full courts.
+* Translucent glass backboards, dark metal poles, an orange rim, and a tapered net.
+* A basketball with a leather material, referenced from its own asset file.
+
 ## Connect it to I Got Next
 
 `court_spec.json` holds synthetic example listings shaped like a court record. To connect real data, export your courts table to the same fields:
@@ -84,7 +106,11 @@ The tool writes `output/manifest.json` with each court_id, its status, any error
 
 * `validate_listing` checks the raw data before any 3D work.
 * `create_stage` sets axis, units, timeline range, and the metadata that links the scene to the listing.
-* `build_court` generates floor, lines, painted keys, backboards, poles, and rims.
+* `material` builds a UsdPreviewSurface with color, roughness, metallic, and opacity.
+* `build_court` generates floor, lines, painted keys, backboards, poles, rims, and nets.
+* `strut`, `ring`, and `net` build the rim and net from thin cylinders so they show up in every viewer.
+* `slab`, `circle_marking`, and `three_point_line` draw floor markings.
+* `open_in_blender.py` is a separate Blender launcher. It is not part of the export pipeline.
 * `author_ball_asset` and `reference_ball` write the ball layer and pull it into the scene.
 * `shot_plan` and `ball_position` map a tick to a ball position as a pure function.
 * `animate_ball` writes 97 time samples and syncs the Kit timeline when present.
@@ -155,6 +181,7 @@ Expected: `VALIDATION ERROR: Shot misses the rim` and a nonzero exit code.
 
 * `ModuleNotFoundError: pxr`. Cause: environment not active. Fix: activate it and reinstall requirements.
 * `Unresolved reference`. Cause: the ball file moved. Fix: keep `basketball_asset.usda` beside the court files.
+* Court is all gray in Blender. Cause: a manual import skipped the materials. Fix: use `blender --python open_in_blender.py` and switch to Material Preview.
 * Court appears without a ball in a viewer. Cause: only one file was copied. Fix: copy the court file and the ball asset together.
 * A court shows FAILED. Cause: bad listing data or a layout the ball cannot clear. Fix: read the error lines above the summary and correct the listing.
 * Nothing in `output`. Cause: you used `--dryrun`. Fix: run again without that flag.
@@ -162,7 +189,7 @@ Expected: `VALIDATION ERROR: Shot misses the rim` and a nonzero exit code.
 ## Extend it
 
 * Add players as referenced assets and test player to player clearance.
-* Add three point arcs and free throw circles.
+* Add spectators, bleachers, and a scoreboard as referenced assets.
 * Add UsdPhysics rigid bodies so the shot runs under a physics engine in Omniverse.
 * Run the dry run in CI so every listing change validates automatically.
 

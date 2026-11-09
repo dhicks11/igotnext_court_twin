@@ -71,12 +71,15 @@ def validate_listing(c: dict) -> list:
 # ---------------------------------------------------------------------------
 # Geometry helpers
 # ---------------------------------------------------------------------------
-def material(stage, name, color):
-    path = f"/World/Looks/{name}"
+def material(stage, name, color, roughness=0.6, metallic=0.0, opacity=1.0, root="/World/Looks"):
+    path = f"{root}/{name}"
     mat = UsdShade.Material.Define(stage, path)
     sh = UsdShade.Shader.Define(stage, f"{path}/Shader")
     sh.CreateIdAttr("UsdPreviewSurface")
     sh.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(color)
+    sh.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(roughness)
+    sh.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(metallic)
+    sh.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(opacity)
     mat.CreateSurfaceOutput().ConnectToSource(sh.ConnectableAPI(), "surface")
     return mat
 
@@ -93,18 +96,81 @@ def box(stage, path, size, center, mat=None):
     return cube
 
 
-def ring(stage, path, center, radius, width=0.03, color=Gf.Vec3f(1.0, 0.4, 0.1), segments=32):
-    """A circle drawn with linear BasisCurves, used for rims."""
-    pts = [Gf.Vec3f(center[0] + radius * math.cos(2 * math.pi * i / segments),
-                    center[1] + radius * math.sin(2 * math.pi * i / segments),
-                    center[2]) for i in range(segments + 1)]
-    curves = UsdGeom.BasisCurves.Define(stage, path)
-    curves.CreateTypeAttr("linear")
-    curves.CreateCurveVertexCountsAttr([len(pts)])
-    curves.CreatePointsAttr(pts)
-    curves.CreateWidthsAttr([width])
-    curves.SetWidthsInterpolation("constant")
-    curves.GetDisplayColorAttr().Set([color])
+def strut(stage, path, p0, p1, radius, mat=None):
+    """A thin cylinder running from point p0 to point p1 (used for rim and net strands)."""
+    a, b = Gf.Vec3d(*p0), Gf.Vec3d(*p1)
+    d = b - a
+    cyl = UsdGeom.Cylinder.Define(stage, path)
+    cyl.GetRadiusAttr().Set(radius)
+    cyl.GetHeightAttr().Set(d.GetLength())
+    x = UsdGeom.Xformable(cyl)
+    x.AddTranslateOp().Set((a + b) / 2)
+    x.AddOrientOp().Set(Gf.Quatf(Gf.Rotation(Gf.Vec3d(0, 0, 1), d.GetNormalized()).GetQuat()))
+    if mat:
+        UsdShade.MaterialBindingAPI.Apply(cyl.GetPrim()).Bind(mat)
+    return cyl
+
+
+def ring(stage, path, center, radius, width, mat, segments=32):
+    """A circle of thin struts, used for the rim."""
+    UsdGeom.Xform.Define(stage, path)
+    for i in range(segments):
+        a0, a1 = 2 * math.pi * i / segments, 2 * math.pi * (i + 1) / segments
+        p0 = (center[0] + radius * math.cos(a0), center[1] + radius * math.sin(a0), center[2])
+        p1 = (center[0] + radius * math.cos(a1), center[1] + radius * math.sin(a1), center[2])
+        strut(stage, f"{path}/S{i}", p0, p1, width / 2, mat)
+
+
+def net(stage, path, center, radius, mat, drop=0.4, bottom_radius=0.12, strands=16):
+    """A simple tapered net hanging below the rim."""
+    UsdGeom.Xform.Define(stage, path)
+    for i in range(strands):
+        a = 2 * math.pi * i / strands
+        top = (center[0] + radius * math.cos(a), center[1] + radius * math.sin(a), center[2])
+        bot = (center[0] + bottom_radius * math.cos(a), center[1] + bottom_radius * math.sin(a), center[2] - drop)
+        strut(stage, f"{path}/V{i}", top, bot, 0.006, mat)
+    # One mid-height ring so the net reads as a mesh.
+    mid_r, mid_z = (radius + bottom_radius) / 2, center[2] - drop / 2
+    for i in range(strands):
+        a0, a1 = 2 * math.pi * i / strands, 2 * math.pi * (i + 1) / strands
+        strut(stage, f"{path}/H{i}",
+              (center[0] + mid_r * math.cos(a0), center[1] + mid_r * math.sin(a0), mid_z),
+              (center[0] + mid_r * math.cos(a1), center[1] + mid_r * math.sin(a1), mid_z), 0.006, mat)
+
+
+def slab(stage, path, p0, p1, width, z, mat):
+    """A thin floor marking from (x0, y0) to (x1, y1)."""
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+    cube = UsdGeom.Cube.Define(stage, path)
+    cube.GetSizeAttr().Set(1.0)
+    x = UsdGeom.Xformable(cube)
+    x.AddTranslateOp().Set(Gf.Vec3d((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, z))
+    x.AddRotateZOp().Set(math.degrees(math.atan2(dy, dx)))
+    x.AddScaleOp().Set(Gf.Vec3f(math.hypot(dx, dy), width, 0.01))
+    UsdShade.MaterialBindingAPI.Apply(cube.GetPrim()).Bind(mat)
+
+
+def circle_marking(stage, path, cx, cy, r, mat, segments=40, width=0.05, z=0.012):
+    UsdGeom.Xform.Define(stage, path)
+    for k in range(segments):
+        a0, a1 = 2 * math.pi * k / segments, 2 * math.pi * (k + 1) / segments
+        slab(stage, f"{path}/S{k}", (cx + r * math.cos(a0), cy + r * math.sin(a0)),
+             (cx + r * math.cos(a1), cy + r * math.sin(a1)), width, z, mat)
+
+
+def three_point_line(stage, path, rim, s, L, W, mat, radius=6.75, corner_margin=0.9, width=0.05, z=0.012):
+    """Arc around the hoop plus straight corner lines running to the baseline."""
+    UsdGeom.Xform.Define(stage, path)
+    limit = W / 2 - corner_margin                  # arc may not get closer than this to a sideline
+    th = math.asin(min(1.0, limit / radius))
+    n = 40
+    pts = [(rim[0] - s * radius * math.cos(-th + 2 * th * k / n), radius * math.sin(-th + 2 * th * k / n))
+           for k in range(n + 1)]
+    for k in range(n):
+        slab(stage, f"{path}/A{k}", pts[k], pts[k + 1], width, z, mat)
+    baseline = s * L / 2
+    slab(stage, f"{path}/CornerA", pts[0], (baseline, pts[0][1]), width, z, mat)
+    slab(stage, f"{path}/CornerB", pts[-1], (baseline, pts[-1][1]), width, z, mat)
 
 
 def hoop_geometry(c: dict) -> list:
@@ -141,15 +207,21 @@ def create_stage(anchor: str, c: dict) -> Usd.Stage:
 
 def build_court(stage, c: dict) -> None:
     UsdGeom.Scope.Define(stage, "/World/Looks")
-    floor_color = Gf.Vec3f(0.72, 0.52, 0.30) if c["surface"] == "hardwood" else Gf.Vec3f(0.30, 0.30, 0.33)
-    floor = material(stage, "Floor", floor_color)
-    paint = material(stage, "Paint", Gf.Vec3f(0.46, 0.22, 0.72))
-    line = material(stage, "Line", Gf.Vec3f(0.95, 0.95, 0.95))
-    steel = material(stage, "Steel", Gf.Vec3f(0.55, 0.55, 0.6))
-    glass = material(stage, "Board", Gf.Vec3f(0.85, 0.9, 0.95))
+    hardwood = c["surface"] == "hardwood"
+    floor_color = Gf.Vec3f(0.80, 0.58, 0.32) if hardwood else Gf.Vec3f(0.30, 0.30, 0.33)
+    floor = material(stage, "Floor", floor_color, roughness=0.25 if hardwood else 0.9)
+    apron = material(stage, "Apron", Gf.Vec3f(0.17, 0.08, 0.30), roughness=0.5)
+    paint = material(stage, "Paint", Gf.Vec3f(0.46, 0.22, 0.72), roughness=0.35)
+    line = material(stage, "Line", Gf.Vec3f(0.97, 0.97, 0.97), roughness=0.4)
+    steel = material(stage, "Steel", Gf.Vec3f(0.25, 0.26, 0.30), roughness=0.35, metallic=0.9)
+    glass = material(stage, "Board", Gf.Vec3f(0.85, 0.92, 0.98), roughness=0.05, opacity=0.45)
+    rim_mat = material(stage, "Rim", Gf.Vec3f(1.0, 0.3, 0.05), roughness=0.4, metallic=0.6)
+    net_mat = material(stage, "Net", Gf.Vec3f(0.96, 0.96, 0.96), roughness=0.9)
 
     L, W = c["length_m"], c["width_m"]
-    box(stage, "/World/Floor", (L + 2.0, W + 2.0, 0.1), (0, 0, -0.05), floor)
+    # Dark purple out-of-bounds border under a glossy playing surface.
+    box(stage, "/World/Floor", (L + 2.0, W + 2.0, 0.1), (0, 0, -0.05), apron)
+    box(stage, "/World/PlayingSurface", (L, W, 0.004), (0, 0, 0.002), floor)
 
     # Boundary lines as thin slabs just above the floor (simplified markings).
     t, z = 0.05, 0.005
@@ -174,7 +246,13 @@ def build_court(stage, c: dict) -> None:
         pole.GetHeightAttr().Set(BACKBOARD_BOTTOM + BACKBOARD[2])
         UsdGeom.Xformable(pole).AddTranslateOp().Set(Gf.Vec3d(h["pole_x"], 0, (BACKBOARD_BOTTOM + BACKBOARD[2]) / 2))
         UsdShade.MaterialBindingAPI.Apply(pole.GetPrim()).Bind(steel)
-        ring(stage, f"{base}/Rim", h["rim"], RIM_RADIUS)
+        ring(stage, f"{base}/Rim", h["rim"], RIM_RADIUS, 0.04, rim_mat)
+        net(stage, f"{base}/Net", h["rim"], RIM_RADIUS, net_mat)
+        # Court markings for this end: three point line and free throw circle.
+        three_point_line(stage, f"/World/Lines/ThreePoint{i}", h["rim"], s, L, W, line)
+        circle_marking(stage, f"/World/Lines/FreeThrow{i}", s * (L / 2 - 5.8), 0.0, 1.8, line)
+    if c["hoops"] == 2:
+        circle_marking(stage, "/World/Lines/CenterCircle", 0.0, 0.0, 1.8, line)
     log.info("Court built: %.1f m by %.1f m, %d hoop(s), rim %.2f m", L, W, c["hoops"], c["rim_height_m"])
 
 
@@ -187,7 +265,10 @@ def author_ball_asset(path: Path) -> None:
     asset.SetDefaultPrim(root.GetPrim())
     sphere = UsdGeom.Sphere.Define(asset, "/Ball/Body")
     sphere.GetRadiusAttr().Set(BALL_RADIUS)
-    sphere.GetDisplayColorAttr().Set([Gf.Vec3f(0.9, 0.4, 0.1)])
+    sphere.GetDisplayColorAttr().Set([Gf.Vec3f(0.95, 0.42, 0.08)])
+    UsdGeom.Scope.Define(asset, "/Ball/Looks")
+    leather = material(asset, "Leather", Gf.Vec3f(0.95, 0.42, 0.08), roughness=0.85, root="/Ball/Looks")
+    UsdShade.MaterialBindingAPI.Apply(sphere.GetPrim()).Bind(leather)
     asset.GetRootLayer().Save()
 
 
