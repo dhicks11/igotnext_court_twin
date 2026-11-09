@@ -206,12 +206,29 @@ Expected: `VALIDATION ERROR: Shot misses the rim` and a nonzero exit code.
 * A court shows FAILED. Cause: bad listing data or a layout the ball cannot clear. Fix: read the error lines above the summary and correct the listing.
 * Nothing in `output`. Cause: you used `--dryrun`. Fix: run again without that flag.
 
+## Tests
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest
+```
+
+The suite in `tests/test_court_twin.py` has 66 tests and runs in about a second:
+
+* **Listing validation.** Every limit is checked on the edge and just outside it, so loosening a rule fails a test.
+* **Hoop placement and animation.** The ball must start at the release spot, reach the rim center at tick 60, land on the floor at tick 96, arc above both, and only fall after the rim. Calling the animation function in any order gives the same positions.
+* **Scene building.** The names the validator searches for (`Backboard`, `Pole`) exist, units are meters, the ball is its own layer.
+* **The whole pipeline.** A dry run writes nothing, an export has 97 time samples, a bad listing never builds, and a missed shot or a ball that clips the backboard blocks export.
+* **Command line.** Exit codes 0, 1, and 2, and the manifest contents.
+
+`.github/workflows/ci.yml` runs the tests and a dry run on GitHub for every push, on Python 3.10 and 3.12.
+
 ## Extend it
 
 * Add players as referenced assets and test player to player clearance.
 * Add spectators, bleachers, and a scoreboard as referenced assets.
 * Add UsdPhysics rigid bodies so the shot runs under a physics engine in Omniverse.
-* Run the dry run in CI so every listing change validates automatically.
+* Check physics inputs (ball mass, restitution) in the validation gate once the shot is simulated.
 
 ## Notes
 
