@@ -1,10 +1,22 @@
 {
-  "_note": "SYNTHETIC EXAMPLE DATA shaped like a pickup court listing. Replace with an export from the I Got Next database.",
+  "_note": "SYNTHETIC EXAMPLE DATA shaped like a pickup court listing. Replace with an export from the I Got Next database. The optional theme field is one of purple, sunset, ocean, neon.",
   "courts": [
     {"court_id": "gso_indoor_01", "name": "Example Rec Center Gym", "city": "Greensboro", "indoor": true,
      "surface": "hardwood", "length_m": 28.65, "width_m": 15.24, "hoops": 2, "rim_height_m": 3.05, "shot_distance_m": 4.6},
     {"court_id": "gso_outdoor_02", "name": "Example Park Half Court", "city": "Greensboro", "indoor": false,
      "surface": "asphalt", "length_m": 14.3, "width_m": 15.24, "hoops": 1, "rim_height_m": 3.05, "shot_distance_m": 4.2},
+    {"court_id": "clt_indoor_03", "name": "Example Uptown Community Gym", "city": "Charlotte", "indoor": true,
+     "surface": "hardwood", "length_m": 28.65, "width_m": 15.24, "hoops": 2, "rim_height_m": 3.05, "shot_distance_m": 5.2,
+     "theme": "sunset"},
+    {"court_id": "clt_outdoor_04", "name": "Example Greenway Park Court", "city": "Charlotte", "indoor": false,
+     "surface": "asphalt", "length_m": 15.0, "width_m": 14.0, "hoops": 1, "rim_height_m": 3.05, "shot_distance_m": 4.8,
+     "theme": "ocean"},
+    {"court_id": "rdu_outdoor_05", "name": "Example Riverside Full Court", "city": "Raleigh", "indoor": false,
+     "surface": "asphalt", "length_m": 26.0, "width_m": 14.5, "hoops": 2, "rim_height_m": 3.05, "shot_distance_m": 4.0,
+     "theme": "neon"},
+    {"court_id": "rdu_indoor_06", "name": "Example Campus Fieldhouse", "city": "Raleigh", "indoor": true,
+     "surface": "hardwood", "length_m": 25.0, "width_m": 14.0, "hoops": 2, "rim_height_m": 3.05, "shot_distance_m": 5.0,
+     "theme": "neon"},
     {"court_id": "bad_example_99", "name": "Broken Listing For Testing", "city": "Nowhere", "indoor": false,
      "surface": "asphalt", "length_m": 14.3, "width_m": 15.24, "hoops": 1, "rim_height_m": 9.0, "shot_distance_m": 4.2}
   ]

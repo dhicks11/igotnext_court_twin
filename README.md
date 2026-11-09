@@ -83,11 +83,19 @@ blender --python open_in_blender.py -- output/gso_outdoor_02.usda   # a differen
 
 Do not use File, Import by hand. Blender skips USD Preview Surface materials by default and ignores material bindings on simple USD shapes, so the court would appear gray. `open_in_blender.py` turns on the right import options and assigns each material by object name. Keep `basketball_asset.usda` beside the court file.
 
+The launcher also sets a sky or arena background and a soft sun, switches the color transform to Standard (the default washes colors out), and hides Blender's black empty markers and grid.
+
 Controls: Spacebar plays and pauses, Home frames the whole court, and the second shading ball at the top right of the 3D view (Material Preview) shows colors and gloss.
+
+### Courts and color themes
+
+`court_spec.json` holds six valid synthetic courts (indoor and outdoor, half and full, three cities) plus one broken listing used to prove the data gate. Each listing can set an optional `"theme"`: `purple` (default for hardwood), `ocean` (default for asphalt), `sunset`, or `neon`. Themes are defined in the `THEMES` table at the top of `court_twin.py`.
+
+Indoor courts get three walls and a dark floor. Outdoor courts get a low clear fence. The front side stays open so a viewer can see in.
 
 ### What the scene contains
 
-* Glossy hardwood (or matte asphalt) playing surface on a dark purple out of bounds border.
+* Glossy hardwood (or satin asphalt) playing surface on a bright themed out of bounds border.
 * Boundary lines, a purple painted key, free throw circles, a three point line with corner lines, and a center circle on full courts.
 * Translucent glass backboards, dark metal poles, an orange rim, and a tapered net.
 * A basketball with a leather material, referenced from its own asset file.
@@ -110,6 +118,7 @@ The tool writes `output/manifest.json` with each court_id, its status, any error
 * `build_court` generates floor, lines, painted keys, backboards, poles, rims, and nets.
 * `strut`, `ring`, and `net` build the rim and net from thin cylinders so they show up in every viewer.
 * `slab`, `circle_marking`, and `three_point_line` draw floor markings.
+* `surroundings` adds the ground, walls, or fence, using the colors in `THEMES`.
 * `open_in_blender.py` is a separate Blender launcher. It is not part of the export pipeline.
 * `author_ball_asset` and `reference_ball` write the ball layer and pull it into the scene.
 * `shot_plan` and `ball_position` map a tick to a ball position as a pure function.
@@ -132,10 +141,14 @@ Expected summary:
 ```
 gso_indoor_01      VALIDATED
 gso_outdoor_02     VALIDATED
+clt_indoor_03      VALIDATED
+clt_outdoor_04     VALIDATED
+rdu_outdoor_05     VALIDATED
+rdu_indoor_06      VALIDATED
 bad_example_99     FAILED
 ```
 
-The third court fails on purpose. Its rim height is 9 meters, and the log says `LISTING ERROR: rim_height_m 9.0 outside 2.4 to 3.1`. This proves the data gate works.
+The last court fails on purpose. Its rim height is 9 meters, and the log says `LISTING ERROR: rim_height_m 9.0 outside 2.4 to 3.1`. This proves the data gate works.
 
 ### 2. Read the physics checks
 

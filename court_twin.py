@@ -54,6 +54,19 @@ MIN_CLEARANCE = 0.05         # ball must stay this far from board and pole
 
 BALL_ASSET = "basketball_asset.usda"
 
+# Color themes. A listing can pick one with a "theme" field; otherwise hardwood
+# courts use "purple" and asphalt courts use "ocean".
+THEMES = {
+    "purple": {"floor": (0.97, 0.70, 0.34), "apron": (0.50, 0.16, 0.92), "paint": (0.66, 0.24, 1.00),
+               "ground": (0.10, 0.07, 0.20), "wall": (0.30, 0.17, 0.55)},
+    "sunset": {"floor": (0.98, 0.76, 0.42), "apron": (0.96, 0.28, 0.30), "paint": (0.92, 0.20, 0.20),
+               "ground": (0.16, 0.08, 0.10), "wall": (0.62, 0.20, 0.28)},
+    "ocean":  {"floor": (0.08, 0.52, 0.98), "apron": (0.04, 0.78, 0.66), "paint": (1.00, 0.84, 0.10),
+               "ground": (0.16, 0.58, 0.24), "wall": (0.10, 0.30, 0.60)},
+    "neon":   {"floor": (0.10, 0.10, 0.16), "apron": (0.00, 0.90, 0.58), "paint": (1.00, 0.12, 0.62),
+               "ground": (0.04, 0.04, 0.08), "wall": (0.08, 0.10, 0.26)},
+}
+
 
 # ---------------------------------------------------------------------------
 # Listing data validation (stage zero: bad data never reaches the 3D build)
@@ -205,13 +218,30 @@ def create_stage(anchor: str, c: dict) -> Usd.Stage:
     return stage
 
 
+def surroundings(stage, c: dict, theme: dict) -> None:
+    """Ground plus walls (indoor) or a clear fence (outdoor) so the court sits in a place."""
+    L, W = c["length_m"], c["width_m"]
+    UsdGeom.Xform.Define(stage, "/World/Surroundings")
+    ground = material(stage, "Ground", Gf.Vec3f(*theme["ground"]), roughness=0.9)
+    box(stage, "/World/Surroundings/Ground", (L + 60.0, W + 60.0, 0.1), (0, 0, -0.15), ground)
+    if c["indoor"]:
+        mat, name, gap_m, h, t = material(stage, "Wall", Gf.Vec3f(*theme["wall"]), roughness=0.8), "Wall", 5.0, 9.0, 0.3
+    else:
+        mat, name, gap_m, h, t = material(stage, "Fence", Gf.Vec3f(0.85, 0.92, 1.0), roughness=0.3, opacity=0.25), "Fence", 3.0, 3.0, 0.1
+    hx, hy = L / 2 + 1.0 + gap_m, W / 2 + 1.0 + gap_m
+    box(stage, f"/World/Surroundings/{name}N", (2 * hx, t, h), (0, hy, h / 2), mat)
+    # No south wall or fence: it stays open so a viewer orbiting the court can see in.
+    box(stage, f"/World/Surroundings/{name}E", (t, 2 * hy, h), (hx, 0, h / 2), mat)
+    box(stage, f"/World/Surroundings/{name}W", (t, 2 * hy, h), (-hx, 0, h / 2), mat)
+
+
 def build_court(stage, c: dict) -> None:
     UsdGeom.Scope.Define(stage, "/World/Looks")
     hardwood = c["surface"] == "hardwood"
-    floor_color = Gf.Vec3f(0.80, 0.58, 0.32) if hardwood else Gf.Vec3f(0.30, 0.30, 0.33)
-    floor = material(stage, "Floor", floor_color, roughness=0.25 if hardwood else 0.9)
-    apron = material(stage, "Apron", Gf.Vec3f(0.36, 0.20, 0.62), roughness=0.5)
-    paint = material(stage, "Paint", Gf.Vec3f(0.46, 0.22, 0.72), roughness=0.35)
+    theme = THEMES.get(c.get("theme") or ("purple" if hardwood else "ocean"), THEMES["purple"])
+    floor = material(stage, "Floor", Gf.Vec3f(*theme["floor"]), roughness=0.25 if hardwood else 0.7)
+    apron = material(stage, "Apron", Gf.Vec3f(*theme["apron"]), roughness=0.5)
+    paint = material(stage, "Paint", Gf.Vec3f(*theme["paint"]), roughness=0.35)
     line = material(stage, "Line", Gf.Vec3f(0.97, 0.97, 0.97), roughness=0.4)
     steel = material(stage, "Steel", Gf.Vec3f(0.70, 0.72, 0.76), roughness=0.4, metallic=0.3)
     glass = material(stage, "Board", Gf.Vec3f(0.85, 0.92, 0.98), roughness=0.05, opacity=0.45)
@@ -222,6 +252,7 @@ def build_court(stage, c: dict) -> None:
     # Dark purple out-of-bounds border under a glossy playing surface.
     box(stage, "/World/Floor", (L + 2.0, W + 2.0, 0.1), (0, 0, -0.05), apron)
     box(stage, "/World/PlayingSurface", (L, W, 0.004), (0, 0, 0.002), floor)
+    surroundings(stage, c, theme)
 
     # Boundary lines as thin slabs just above the floor (simplified markings).
     t, z = 0.05, 0.005
@@ -265,9 +296,9 @@ def author_ball_asset(path: Path) -> None:
     asset.SetDefaultPrim(root.GetPrim())
     sphere = UsdGeom.Sphere.Define(asset, "/Ball/Body")
     sphere.GetRadiusAttr().Set(BALL_RADIUS)
-    sphere.GetDisplayColorAttr().Set([Gf.Vec3f(0.95, 0.42, 0.08)])
+    sphere.GetDisplayColorAttr().Set([Gf.Vec3f(1.0, 0.45, 0.04)])
     UsdGeom.Scope.Define(asset, "/Ball/Looks")
-    leather = material(asset, "Leather", Gf.Vec3f(0.95, 0.42, 0.08), roughness=0.85, root="/Ball/Looks")
+    leather = material(asset, "Leather", Gf.Vec3f(1.0, 0.45, 0.04), roughness=0.8, root="/Ball/Looks")
     UsdShade.MaterialBindingAPI.Apply(sphere.GetPrim()).Bind(leather)
     asset.GetRootLayer().Save()
 
