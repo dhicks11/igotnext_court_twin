@@ -210,10 +210,10 @@ def build_court(stage, c: dict) -> None:
     hardwood = c["surface"] == "hardwood"
     floor_color = Gf.Vec3f(0.80, 0.58, 0.32) if hardwood else Gf.Vec3f(0.30, 0.30, 0.33)
     floor = material(stage, "Floor", floor_color, roughness=0.25 if hardwood else 0.9)
-    apron = material(stage, "Apron", Gf.Vec3f(0.17, 0.08, 0.30), roughness=0.5)
+    apron = material(stage, "Apron", Gf.Vec3f(0.36, 0.20, 0.62), roughness=0.5)
     paint = material(stage, "Paint", Gf.Vec3f(0.46, 0.22, 0.72), roughness=0.35)
     line = material(stage, "Line", Gf.Vec3f(0.97, 0.97, 0.97), roughness=0.4)
-    steel = material(stage, "Steel", Gf.Vec3f(0.25, 0.26, 0.30), roughness=0.35, metallic=0.9)
+    steel = material(stage, "Steel", Gf.Vec3f(0.70, 0.72, 0.76), roughness=0.4, metallic=0.3)
     glass = material(stage, "Board", Gf.Vec3f(0.85, 0.92, 0.98), roughness=0.05, opacity=0.45)
     rim_mat = material(stage, "Rim", Gf.Vec3f(1.0, 0.3, 0.05), roughness=0.4, metallic=0.6)
     net_mat = material(stage, "Net", Gf.Vec3f(0.96, 0.96, 0.96), roughness=0.9)
