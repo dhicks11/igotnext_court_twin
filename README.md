@@ -1,6 +1,10 @@
 # I Got Next Court Digital Twin
 
-A Python tool that turns a pickup basketball court listing into a 3D scene built with OpenUSD. It generates the court, hoops, and a basketball, animates a jump shot on the simulation timeline, and blocks export until a dry run validation pass succeeds. It runs on any laptop with the open source USD library, and it also runs inside NVIDIA Omniverse Kit.
+A Python tool that turns a pickup basketball court listing into a 3D scene built with OpenUSD. It generates the court, hoops, and a basketball, animates a jump shot on the simulation timeline, and blocks export until a dry run validation pass succeeds. It runs on any laptop with the open source USD library. The script is written to work inside NVIDIA Omniverse Kit as well, but it has only been tested outside Omniverse so far (previewed in Blender).
+
+![A jump shot playing on a synthetic indoor court: the ball arcs, drops through the net, and hits the floor](docs/demo.gif)
+
+*One validated court from the synthetic listings, rendered from the exported USD file in Blender.*
 
 ## Why this project exists
 
