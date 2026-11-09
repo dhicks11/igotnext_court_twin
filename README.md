@@ -77,9 +77,12 @@ This project was previewed in Blender 5.2 on a Mac. It has not been run inside O
 ```bash
 brew install --cask blender                      # macOS. On Windows, install from blender.org
 python court_twin.py                             # create the output folder first
-blender --python open_in_blender.py              # opens gso_indoor_01 and starts playback
-blender --python open_in_blender.py -- output/gso_outdoor_02.usda   # a different court
+blender --python open_in_blender.py              # gallery: every court in one scene, labeled, all playing
+blender --python open_in_blender.py -- output/gso_outdoor_02.usda   # a single court
+blender --python open_in_blender.py -- output/a.usda output/b.usda  # chosen courts
 ```
+
+Gallery mode lays the courts out in a grid of three columns, drops the walls and fences so nothing blocks the view, and puts every court on one dark ground with a label.
 
 Do not use File, Import by hand. Blender skips USD Preview Surface materials by default and ignores material bindings on simple USD shapes, so the court would appear gray. `open_in_blender.py` turns on the right import options and assigns each material by object name. Keep `basketball_asset.usda` beside the court file.
 
